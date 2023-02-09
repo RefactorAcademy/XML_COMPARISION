@@ -23,8 +23,9 @@
   "dependencies": {
     "@nestjs/common": "^9.0.0",
     "@nestjs/core": "^9.0.0",
-    "@nestjs/platform-express": "^9.0.0",
+    "@nestjs/platform-express": "^9.3.7",
     "fast-xml-parser": "^4.1.1",
+    "fs": "0.0.1-security",
     "node-xml-compare": "^0.1.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
@@ -39,6 +40,7 @@
     "@types/jest": "28.1.8",
     "@types/node": "^16.0.0",
     "@types/supertest": "^2.0.11",
+    "@types/xml2js": "^0.4.11",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint": "^8.0.1",

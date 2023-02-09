@@ -1,83 +1,57 @@
-import { Controller, Post, UseInterceptors, UploadedFiles, Res } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFiles, HttpException, HttpStatus } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { createWriteStream, readFileSync } from 'fs';
-import { join } from 'path';
-const fs = require('fs');
-const xml2js = require('xml2js');
+import { parseString } from 'xml2js';
+import { readFileSync, writeFileSync } from 'fs';
 
 @Controller()
 export class AppController {
-
-
-  async convertXMLtoJS(file) {
-  
-    const xmlData = await fs.readFileSync(file, 'utf-8');
-    return new Promise((resolve, reject) => {
-      xml2js.parseString(xmlData, (err, result) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
-    });
-  }
-
-  async convertJStoXML(jsData) {
-    const builder = new xml2js.Builder();
-    return builder.buildObject(jsData);
-  }
-
   @Post()
-  @UseInterceptors(FilesInterceptor('files'))
-  async compareXML(@UploadedFiles() files, @Res() res) {
-    const xml1 = readFileSync(files[0].originalname, 'utf-8');
-    const xml2 = readFileSync(files[1].originalname, 'utf-8');
-    
-    const obj1 = await this.convertXMLtoJS('XML_1.xml');
-    const obj2 = await this.convertXMLtoJS('XML_2.xml');
+  async compareXmlFiles() {
+    try {
+      const xmlFile1 = readFileSync("XML_1.xml", 'utf-8');
+      const xmlFile2 = readFileSync("XML_1.xml", 'utf-8');
+  
+      let map = {};
+      parseString(xmlFile1, (err, result) => {
+        this.compareXmlFilesHelper(result, map);
+      });
+  
+      let finalResult;
+      parseString(xmlFile2, (err, result) => {
+        this.updateXmlFile(result, map);
+        finalResult=result
+        writeFileSync('updatedXmlFile.xml', JSON.stringify(result));
 
-    
-    let result = await this.compareXML2(obj1, obj2); 
-
-    const xml = await this.convertJStoXML(result);
-
-    res.setHeader('Content-Type', 'application/xml');
-    res.setHeader('Content-Disposition', 'attachment; filename=compared.xml');
-
-    return res.send(xml)
-
+      });
+  
+  
+      return { message: 'XML file comparison is complete. Check the updatedXmlFile.xml for the result.',result:finalResult };
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
-
-  async compareXML2(xml1, xml2) {
-    console.log(xml1.root.element[0]);
-    
-    const xml1Elements = xml1.root.element;
-    const xml2Elements = xml2.root.element;
   
-    xml2Elements.forEach((xml2Element) => {
-      
-      const xml1Element = xml1Elements.find(
-        (element) => element.value[0] === xml2Element.value[0]
-      );
-      if (xml1Element) {
-        xml2Element.occurrence = "both";
-      } else {
-        xml2Element.occurrence = "2";
+  compareXmlFilesHelper(element, map) {
+    for (const key in element) {
+      if (typeof element[key] === 'object') {
+        map[key] = '1';
+        this.compareXmlFilesHelper(element[key], map);
       }
-    });
+    }
+  }
   
-    xml1Elements.forEach((xml1Element) => {
-      
-      const xml2Element = xml2Elements.find(
-        (element) => element.value[0] === xml1Element.value[0]
-      );
-      if (!xml2Element) {
-        
-        xml1Element.occurrence = "1";
+  updateXmlFile(element, map) {
+    for (const key in element) {
+      if (typeof element[key] === 'object') {
+        if (map[key]) {
+          map[key] = 'both';
+        } else {
+          map[key] = '2';
+        }
+  
+        element[key]['occurrence'] = map[key];
+        this.updateXmlFile(element[key], map);
       }
-    });
-  
-    return xml2;
+    }
   }
 }
